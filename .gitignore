@@ -1,7 +1,7 @@
 # Docker Volumes and State
 .env
 .env.*
-! .env.example
+!.env.example
 
 # App Development directory logs
 www/logs/
