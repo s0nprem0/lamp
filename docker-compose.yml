@@ -4,10 +4,10 @@ services:
     container_name: lamp_hub_web
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "127.0.0.1:80:80" # Locked down to localhost only
     volumes:
-      - ./www:/var/www/html # your application code
-      - ./dashboard:/var/www/html/dashboard # optional separate folder
+      - ./dashboard:/var/www/html/ # Dashboard Root
+      - ./www:/var/www/html/projects #Projects Folder (with directory browsing)
     environment:
       - MYSQL_DATABASE=${MYSQL_DATABASE:-testdb}
       - MYSQL_USER=${MYSQL_USER:-user}
@@ -17,9 +17,6 @@ services:
         condition: service_healthy
     networks:
       - lamp_network
-    # Resource limits (optional - uncomment , prevents runaway containers)
-    # mem_limit: 512M
-    # cpus: '0.5'
 
   db:
     image: mariadb:10.11
@@ -51,18 +48,15 @@ services:
     container_name: lamp_hub_pma
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8080:80" # bind to localhost only – access via SSH tunnel or proxy
+      - "127.0.0.1:8080:80" # bind to localhost only
     environment:
       PMA_HOST: db
       PMA_PORT: 3306
-      PMA_ARBITRARY: 1
     depends_on:
       db:
         condition: service_healthy
     networks:
       - lamp_network
-    # mem_limit: 256M
-    # cpus: "0.2"
 
 volumes:
   db_data:
@@ -70,3 +64,4 @@ volumes:
 networks:
   lamp_network:
     driver: bridge
+
