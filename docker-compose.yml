@@ -1,0 +1,58 @@
+services:
+  web:
+    build: .
+    container_name: lamp_hub_web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./www:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - lamp_network
+
+  db:
+    image: mariadb:10.11
+    container_name: lamp_hub_db
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3306:3306" # Restricted to localhost for safety
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-testdb}
+      MYSQL_USER: ${MYSQL_USER:-user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-userpass}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lamp_network
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: lamp_hub_pma
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 1 # Allows logging in as root or regular user dynamically
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - lamp_network
+
+volumes:
+  db_data:
+
+networks:
+  lamp_network:
+    driver: bridge

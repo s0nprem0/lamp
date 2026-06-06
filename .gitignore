@@ -1,0 +1,11 @@
+# Docker Volumes and State
+.env
+.env.*
+! .env.example
+
+# App Development directory logs
+www/logs/
+www/uploads/
+
+
+www
