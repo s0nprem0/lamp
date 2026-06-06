@@ -6,26 +6,38 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./www:/var/www/html
+      - ./www:/var/www/html # your application code
+      - ./dashboard:/var/www/html/dashboard # optional separate folder
+    environment:
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-testdb}
+      - MYSQL_USER=${MYSQL_USER:-user}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-userpass}
     depends_on:
       db:
         condition: service_healthy
     networks:
       - lamp_network
+    # Resource limits (optional - uncomment , prevents runaway containers)
+    # mem_limit: 512M
+    # cpus: '0.5'
 
   db:
     image: mariadb:10.11
     container_name: lamp_hub_db
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3306:3306" # Restricted to localhost for safety
+      - "127.0.0.1:3306:3306" # localhost only
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-testdb}
-      MYSQL_USER: ${MYSQL_USER:-user}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-userpass}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD?err} # no fallback – must be in .env
+      MYSQL_DATABASE: ${MYSQL_DATABASE?err}
+      MYSQL_USER: ${MYSQL_USER?err}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD?err}
     volumes:
       - db_data:/var/lib/mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+00:00
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
@@ -39,16 +51,18 @@ services:
     container_name: lamp_hub_pma
     restart: unless-stopped
     ports:
-      - "8080:80"
+      - "127.0.0.1:8080:80" # bind to localhost only – access via SSH tunnel or proxy
     environment:
       PMA_HOST: db
       PMA_PORT: 3306
-      PMA_ARBITRARY: 1 # Allows logging in as root or regular user dynamically
+      PMA_ARBITRARY: 1
     depends_on:
       db:
         condition: service_healthy
     networks:
       - lamp_network
+    # mem_limit: 256M
+    # cpus: "0.2"
 
 volumes:
   db_data:
