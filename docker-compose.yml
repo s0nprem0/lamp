@@ -1,17 +1,55 @@
 services:
   web:
     build: .
-    container_name: lamp_hub_web
     restart: unless-stopped
     ports:
-      - "127.0.0.1:80:80" # Locked down to localhost only
+      - "80:80"
     volumes:
-      - ./dashboard:/var/www/html/ # Dashboard Root
-      - ./www:/var/www/html/projects #Projects Folder (with directory browsing)
+      - ./www:/var/www/html
+    env_file: .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - lamp_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  dashboard:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    volumes:
+      - ./dashboard:/var/www/html
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - lamp_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  phpmyadmin:
+    image: phpmyadmin:5.2
+    restart: unless-stopped
+    ports:
+      - "8080:80"
     environment:
-      - MYSQL_DATABASE=${MYSQL_DATABASE:-testdb}
-      - MYSQL_USER=${MYSQL_USER:-user}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-userpass}
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 1
     depends_on:
       db:
         condition: service_healthy
@@ -20,15 +58,10 @@ services:
 
   db:
     image: mariadb:10.11
-    container_name: lamp_hub_db
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3306:3306" # localhost only
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD?err} # no fallback – must be in .env
-      MYSQL_DATABASE: ${MYSQL_DATABASE?err}
-      MYSQL_USER: ${MYSQL_USER?err}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD?err}
+      - "127.0.0.1:3306:3306"
+    env_file: .env
     volumes:
       - db_data:/var/lib/mysql
     command:
@@ -43,25 +76,9 @@ services:
     networks:
       - lamp_network
 
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin
-    container_name: lamp_hub_pma
-    restart: unless-stopped
-    ports:
-      - "127.0.0.1:8080:80" # bind to localhost only
-    environment:
-      PMA_HOST: db
-      PMA_PORT: 3306
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - lamp_network
-
 volumes:
   db_data:
 
 networks:
   lamp_network:
     driver: bridge
-

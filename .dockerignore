@@ -1,0 +1,8 @@
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+www/
+README.md
+.php-cs-fixer.dist.php
