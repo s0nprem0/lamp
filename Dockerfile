@@ -1,5 +1,10 @@
 FROM php:8.4-apache
 
+ARG PHP_MEMORY_LIMIT=256M
+ARG PHP_MAX_EXECUTION_TIME=30
+ARG PHP_UPLOAD_MAX_FILESIZE=20M
+ARG PHP_POST_MAX_SIZE=20M
+
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
@@ -23,7 +28,17 @@ RUN set -eux; \
     ; \
     pecl install xdebug; \
     docker-php-ext-enable xdebug; \
-    a2enmod rewrite autoindex; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*
+
+# PHP configuration
+RUN echo "memory_limit = ${PHP_MEMORY_LIMIT}" > /usr/local/etc/php/conf.d/docker-php-custom.ini \
+    && echo "max_execution_time = ${PHP_MAX_EXECUTION_TIME}" >> /usr/local/etc/php/conf.d/docker-php-custom.ini \
+    && echo "upload_max_filesize = ${PHP_UPLOAD_MAX_FILESIZE}" >> /usr/local/etc/php/conf.d/docker-php-custom.ini \
+    && echo "post_max_size = ${PHP_POST_MAX_SIZE}" >> /usr/local/etc/php/conf.d/docker-php-custom.ini
+
+# Apache configuration
+RUN a2enmod rewrite headers ssl; \
     echo "ServerName localhost" >> /etc/apache2/apache2.conf; \
     { \
         echo '<Directory /var/www/html>'; \
@@ -33,11 +48,11 @@ RUN set -eux; \
         echo '</Directory>'; \
     } > /etc/apache2/conf-available/browse.conf; \
     a2enconf browse; \
-    apt-get clean; \
-    rm -rf /var/lib/apt/lists/*; \
-    chown -R www-data:www-data /var/www/html
+    sed -i 's/ServerTokens OS/ServerTokens Prod/' /etc/apache2/conf-available/security.conf; \
+    sed -i 's/ServerSignature On/ServerSignature Off/' /etc/apache2/conf-available/security.conf
 
-COPY config/php.ini /usr/local/etc/php/conf.d/custom.ini
+# Create non-root user
+RUN useradd -r -u 1000 -g www-data webuser
 
 WORKDIR /var/www/html
 EXPOSE 80
